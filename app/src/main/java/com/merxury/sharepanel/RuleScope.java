@@ -1,5 +1,6 @@
 package com.merxury.sharepanel;
 
+import android.content.Context;
 import android.content.Intent;
 
 import java.util.Arrays;
@@ -27,13 +28,11 @@ public final class RuleScope {
     ));
 
     public final String key;
-    public final String label;
     private final String operation;
 
     private RuleScope(String operation, String type) {
         this.operation = operation;
         key = operation + ":" + type;
-        label = "default".equals(type) ? "分享 · 默认规则" : actionTitle() + " · " + typeLabel(operation, type);
     }
 
     public static RuleScope fromIntent(Intent intent) {
@@ -85,32 +84,34 @@ public final class RuleScope {
         return new RuleScope(operation, key.substring(separator + 1));
     }
 
-    public String actionTitle() {
+    public String getLabel(Context context) {
+        String type = key.substring(key.indexOf(':') + 1);
+        if ("default".equals(type)) return context.getString(R.string.scope_default);
+        int action;
         switch (operation) {
-            case "share": return "分享";
-            case "open": return "打开方式";
-            case "edit": return "编辑方式";
-            case "process_text": return "文本处理";
-            default: return "其他操作";
+            case "share": action = R.string.scope_share; break;
+            case "open": action = R.string.scope_open; break;
+            case "edit": action = R.string.scope_edit; break;
+            case "process_text": action = R.string.scope_process_text; break;
+            default: action = R.string.scope_other;
         }
-    }
-
-    private static String typeLabel(String operation, String type) {
+        String label;
         switch (type) {
-            case "image/*": return "图片";
-            case "video/*": return "视频";
-            case "audio/*": return "音频";
-            case "text/*": return "share".equals(operation) ? "文字" : "TXT / 文本";
-            case "application/pdf": return "PDF";
-            case "application/msword": return "DOC（Word）";
-            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": return "DOCX（Word）";
-            case "web": return "网页链接";
-            case "unknown": return "未指定类型";
-            default: return type;
+            case "image/*": label = context.getString(R.string.scope_image); break;
+            case "video/*": label = context.getString(R.string.scope_video); break;
+            case "audio/*": label = context.getString(R.string.scope_audio); break;
+            case "text/*": label = context.getString("share".equals(operation)
+                    ? R.string.scope_text : R.string.scope_txt); break;
+            case "application/pdf": label = "PDF"; break;
+            case "application/msword": label = "DOC (Word)"; break;
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": label = "DOCX (Word)"; break;
+            case "web": label = context.getString(R.string.scope_web); break;
+            case "unknown": label = context.getString(R.string.scope_unknown); break;
+            default: label = type;
         }
+        return context.getString(R.string.scope_label, context.getString(action), label);
     }
 
-    @Override public String toString() { return label; }
     @Override public int hashCode() { return key.hashCode(); }
     @Override public boolean equals(Object other) {
         return other instanceof RuleScope && key.equals(((RuleScope) other).key);

@@ -17,6 +17,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,8 +58,10 @@ public final class SettingsActivity extends ShareActivity {
         Spinner spinner = findViewById(R.id.spinner_rule_scope);
         spinner.setVisibility(View.VISIBLE);
         List<RuleScope> scopes = new RuleStore(this).availableScopes();
-        ArrayAdapter<RuleScope> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, scopes);
+        List<String> labels = new ArrayList<>();
+        for (RuleScope scope : scopes) labels.add(scope.getLabel(this));
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, labels);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         int index = 0;
@@ -119,7 +122,7 @@ public final class SettingsActivity extends ShareActivity {
         if (activating) return;
         int generation = ++statusGeneration;
         bridgeExecutor.execute(() -> {
-            try { CallerBridgeClient.connect(); } catch (Exception ignored) { }
+            try { CallerBridgeClient.connect(this); } catch (Exception ignored) { }
             boolean running = CallerBridgeClient.isConnected();
             handler.post(() -> {
                 if (!isFinishing() && !isDestroyed() && generation == statusGeneration && !activating) {
@@ -169,14 +172,14 @@ public final class SettingsActivity extends ShareActivity {
                 String output = new String(process.getInputStream().readAllBytes()).trim();
                 if (process.exitValue() != 0) throw new IllegalStateException(output);
                 if (systemChooserEnabled() != useNative) {
-                    throw new IllegalStateException("系统组件状态未改变");
+                    throw new IllegalStateException(getString(R.string.chooser_state_unchanged));
                 }
                 Intent query = new Intent(Intent.ACTION_CHOOSER).addCategory(Intent.CATEGORY_DEFAULT);
                 ResolveInfo resolved = getPackageManager().resolveActivity(query, PackageManager.MATCH_DEFAULT_ONLY);
                 ComponentName actual = resolved == null || resolved.activityInfo == null ? null
                         : new ComponentName(resolved.activityInfo.packageName, resolved.activityInfo.name);
                 if (!(useNative ? SYSTEM_CHOOSER : CUSTOM_CHOOSER).equals(actual)) {
-                    throw new IllegalStateException("系统实际解析到其他分享入口：" + actual);
+                    throw new IllegalStateException(getString(R.string.chooser_wrong_target, actual));
                 }
             } catch (Exception e) {
                 error = e.getMessage() == null ? e.toString() : e.getMessage();

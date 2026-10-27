@@ -147,7 +147,7 @@ public class ShareActivity extends Activity implements TargetAdapter.OnTargetAct
         }
 
         try {
-            currentRequest = ShareRequest.fromIntent(intent);
+            currentRequest = ShareRequest.fromIntent(this, intent);
         } catch (IllegalArgumentException ex) {
             showError(getString(R.string.error_invalid_request, ex.getMessage()));
             return;
@@ -300,7 +300,7 @@ public class ShareActivity extends Activity implements TargetAdapter.OnTargetAct
 
         executor.execute(() -> {
             try {
-                CallerBridgeClient.start(finalToken, bridgeIntent, resolvedType, userId);
+                CallerBridgeClient.start(this, finalToken, bridgeIntent, resolvedType, userId);
                 mainHandler.post(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (currentRequest != null) {

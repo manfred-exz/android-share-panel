@@ -40,7 +40,7 @@ public final class RootActivation {
             return;
         }
         try {
-            CallerBridgeClient.connect();
+            CallerBridgeClient.connect(context);
             if (CallerBridgeClient.isConnected()) {
                 return;
             }
@@ -51,7 +51,7 @@ public final class RootActivation {
         // 2. Locate installed base APK path
         ApplicationInfo appInfo = context.getApplicationInfo();
         if (appInfo == null || appInfo.sourceDir == null || appInfo.sourceDir.isEmpty()) {
-            throw new IllegalStateException("未找到已安装应用的基础安装包路径");
+            throw new IllegalStateException(context.getString(R.string.root_apk_missing));
         }
         String safeApkPath = appInfo.sourceDir.replace("'", "'\\''");
 
@@ -67,7 +67,7 @@ public final class RootActivation {
         try {
             process = startSuProcess(command);
         } catch (IOException e) {
-            throw new IOException("无法启动 su：未检测到 Root 权限管理工具，请确认设备已 Root", e);
+            throw new IOException(context.getString(R.string.root_su_failed), e);
         }
 
         try {
@@ -85,19 +85,19 @@ public final class RootActivation {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             process.destroyForcibly();
-            throw new IOException("激活操作被中断", e);
+            throw new IOException(context.getString(R.string.root_interrupted), e);
         }
 
         if (!finished) {
             process.destroyForcibly();
-            throw new TimeoutException("等待 Root 授权超时，请在 Root 授权弹窗中允许权限");
+            throw new TimeoutException(context.getString(R.string.root_error_timeout));
         }
 
         try {
             drainer.join(1000);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            throw new IOException("激活操作被中断", interrupted);
+            throw new IOException(context.getString(R.string.root_interrupted), interrupted);
         }
 
         int exitCode = process.exitValue();
@@ -105,9 +105,9 @@ public final class RootActivation {
             String err = output.toString().trim();
             String lower = err.toLowerCase(java.util.Locale.ROOT);
             if (lower.contains("denied") || exitCode == 13) {
-                throw new SecurityException("Root 授权申请被拒绝 (code " + exitCode + (err.isEmpty() ? "" : ": " + err) + ")");
+                throw new SecurityException(context.getString(R.string.root_command_denied, exitCode, err.isEmpty() ? "" : ": " + err));
             }
-            throw new IOException("Root 启动命令执行失败 (code " + exitCode + (err.isEmpty() ? "" : ": " + err) + ")");
+            throw new IOException(context.getString(R.string.root_command_failed, exitCode, err.isEmpty() ? "" : ": " + err));
         }
 
         // 5. Verify the daemon is ready by connecting to its abstract socket
@@ -117,7 +117,7 @@ public final class RootActivation {
 
         while (SystemClock.uptimeMillis() < deadline) {
             try {
-                CallerBridgeClient.connect();
+                CallerBridgeClient.connect(context);
                 if (CallerBridgeClient.isConnected()) {
                     connected = true;
                     break;
@@ -135,8 +135,8 @@ public final class RootActivation {
         }
 
         if (!connected) {
-            String detail = handshakeError != null ? handshakeError.getMessage() : "未收到握手响应";
-            throw new IOException("特权服务启动后握手未能完成: " + detail);
+            String detail = handshakeError != null ? handshakeError.getMessage() : context.getString(R.string.root_no_ack);
+            throw new IOException(context.getString(R.string.root_handshake_failed, detail));
         }
     }
 

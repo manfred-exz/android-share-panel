@@ -1,5 +1,6 @@
 package com.merxury.sharepanel;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
@@ -63,15 +64,15 @@ public final class CallerBridgeClient {
      * broker attachment. If already connected with an alive broker, returns immediately.
      * Must be called OFF the main thread.
      */
-    public static void connect() throws IOException {
+    public static void connect(Context context) throws IOException {
         IBinder broker = sBroker;
         if (broker != null && broker.isBinderAlive()) {
             return;
         }
-        connectAndBootstrap();
+        connectAndBootstrap(context);
         broker = sBroker;
         if (broker == null || !broker.isBinderAlive()) {
-            throw new IOException("特权转发服务未就绪或未挂载有效代理");
+            throw new IOException(context.getString(R.string.bridge_not_ready));
         }
     }
 
@@ -79,7 +80,7 @@ public final class CallerBridgeClient {
      * Dispatches the launch intent via startActivityAsCaller using the privileged broker.
      * Must be called OFF the main thread.
      */
-    public static void start(IBinder activityToken, Intent intent, String resolvedType, int userId) throws Exception {
+    public static void start(Context context, IBinder activityToken, Intent intent, String resolvedType, int userId) throws Exception {
         if (activityToken == null) {
             throw new IllegalArgumentException("activityToken cannot be null");
         }
@@ -87,11 +88,11 @@ public final class CallerBridgeClient {
             throw new IllegalArgumentException("intent cannot be null");
         }
 
-        connect();
+        connect(context);
         IBinder broker = sBroker;
 
         if (broker == null || !broker.isBinderAlive()) {
-            throw new IOException("特权转发服务未就绪或未挂载有效代理");
+            throw new IOException(context.getString(R.string.bridge_not_ready));
         }
 
         Parcel data = Parcel.obtain();
@@ -105,12 +106,12 @@ public final class CallerBridgeClient {
 
             boolean success = broker.transact(TRANSACTION_START, data, reply, 0);
             if (!success) {
-                throw new RemoteException("特权转发事务执行失败 (transact failed)");
+                throw new RemoteException(context.getString(R.string.bridge_transaction_failed));
             }
             reply.readException();
             int startResult = reply.readInt();
             if (startResult < 0) {
-                throw new StartActivityException("startActivityAsCaller 启动失败，错误码：" + startResult, startResult);
+                throw new StartActivityException(context.getString(R.string.bridge_start_failed, startResult), startResult);
             }
         } finally {
             data.recycle();
@@ -118,7 +119,7 @@ public final class CallerBridgeClient {
         }
     }
 
-    private static void connectAndBootstrap() throws IOException {
+    private static void connectAndBootstrap(Context context) throws IOException {
         LocalSocket socket = new LocalSocket();
         try {
             socket.connect(new LocalSocketAddress(SOCKET, LocalSocketAddress.Namespace.ABSTRACT));
@@ -126,7 +127,7 @@ public final class CallerBridgeClient {
             InputStream in = socket.getInputStream();
             int ack = in.read();
             if (ack != 1) {
-                throw new IOException("特权转发服务握手异常 (ack=" + ack + ")");
+                throw new IOException(context.getString(R.string.bridge_handshake_failed, ack));
             }
         } finally {
             try {

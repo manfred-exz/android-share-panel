@@ -45,9 +45,9 @@ public final class ShareRequest {
         this.ruleScope = ruleScope;
     }
 
-    public static ShareRequest fromIntent(Intent chooser) throws IllegalArgumentException {
+    public static ShareRequest fromIntent(Context context, Intent chooser) throws IllegalArgumentException {
         if (chooser == null) {
-            throw new IllegalArgumentException("Chooser intent cannot be null");
+            throw new IllegalArgumentException(context.getString(R.string.request_null));
         }
 
         Intent primaryIntent = null;
@@ -57,7 +57,7 @@ public final class ShareRequest {
                 primaryIntent = (Intent) extra;
             }
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取分享内容", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_content), error);
         }
 
         if (primaryIntent == null) {
@@ -70,12 +70,12 @@ public final class ShareRequest {
         }
 
         if (primaryIntent == null) {
-            throw new IllegalArgumentException("No valid embedded share intent found in Intent.EXTRA_INTENT");
+            throw new IllegalArgumentException(context.getString(R.string.request_missing_intent));
         }
 
         String action = primaryIntent.getAction();
         if (action == null || action.trim().isEmpty()) {
-            throw new IllegalArgumentException("Embedded target intent has empty action");
+            throw new IllegalArgumentException(context.getString(R.string.request_missing_action));
         }
         RuleScope ruleScope = RuleScope.fromIntent(primaryIntent);
 
@@ -87,12 +87,12 @@ public final class ShareRequest {
                 rawTitle = primaryIntent.getCharSequenceExtra(Intent.EXTRA_TITLE);
             }
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取分享标题", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_title), error);
         }
-        String resolvedTitle = (rawTitle != null && rawTitle.length() > 0) ? rawTitle.toString() : ruleScope.label;
+        String resolvedTitle = (rawTitle != null && rawTitle.length() > 0) ? rawTitle.toString() : ruleScope.getLabel(context);
 
         // Parse description
-        String resolvedDescription = buildDescription(primaryIntent);
+        String resolvedDescription = buildDescription(context, primaryIntent);
 
         // Parse payload intents: primary + EXTRA_ALTERNATE_INTENTS
         List<Intent> payloads = new ArrayList<>();
@@ -110,7 +110,7 @@ public final class ShareRequest {
                 }
             }
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取替代分享内容", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_alternates), error);
         }
 
         // Parse EXTRA_INITIAL_INTENTS
@@ -125,7 +125,7 @@ public final class ShareRequest {
                 }
             }
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取附加分享入口", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_initial), error);
         }
 
         // Parse EXTRA_EXCLUDE_COMPONENTS
@@ -140,7 +140,7 @@ public final class ShareRequest {
                 }
             }
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取排除的分享入口", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_excluded), error);
         }
 
         // Parse callbacks
@@ -148,7 +148,7 @@ public final class ShareRequest {
         try {
             chosenSender = chooser.getParcelableExtra(Intent.EXTRA_CHOSEN_COMPONENT_INTENT_SENDER);
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取分享回调", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_callback), error);
         }
 
         return new ShareRequest(
@@ -186,7 +186,7 @@ public final class ShareRequest {
         }
     }
 
-    private static String buildDescription(Intent target) {
+    private static String buildDescription(Context context, Intent target) {
         String action = target.getAction();
         String mime = target.getType();
         CharSequence text = null;
@@ -194,14 +194,14 @@ public final class ShareRequest {
         try {
             text = target.getCharSequenceExtra(Intent.EXTRA_TEXT);
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取分享文本", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_text), error);
         }
 
         ClipData clipData = null;
         try {
             clipData = target.getClipData();
         } catch (RuntimeException error) {
-            throw new IllegalArgumentException("无法读取分享附件", error);
+            throw new IllegalArgumentException(context.getString(R.string.request_read_attachments), error);
         }
 
         if ((text == null || text.length() == 0) && clipData != null) {
@@ -224,7 +224,7 @@ public final class ShareRequest {
                     }
                 }
             } catch (RuntimeException error) {
-                throw new IllegalArgumentException("无法读取多文件分享", error);
+                throw new IllegalArgumentException(context.getString(R.string.request_read_multiple), error);
             }
         } else if (Intent.ACTION_SEND.equals(action)) {
             try {
@@ -233,7 +233,7 @@ public final class ShareRequest {
                     uriCount = 1;
                 }
             } catch (RuntimeException error) {
-                throw new IllegalArgumentException("无法读取文件分享", error);
+                throw new IllegalArgumentException(context.getString(R.string.request_read_file), error);
             }
         }
 
@@ -252,16 +252,14 @@ public final class ShareRequest {
 
         StringBuilder sb = new StringBuilder();
         if (uriCount > 0) {
-            String itemType;
+            int itemType = R.plurals.count_items;
             if (mime != null) {
-                if (mime.startsWith("image/")) itemType = "张图片";
-                else if (mime.startsWith("video/")) itemType = "个视频";
-                else if (mime.startsWith("audio/")) itemType = "个音频";
-                else itemType = "个文件";
-            } else {
-                itemType = "项内容";
+                if (mime.startsWith("image/")) itemType = R.plurals.count_images;
+                else if (mime.startsWith("video/")) itemType = R.plurals.count_videos;
+                else if (mime.startsWith("audio/")) itemType = R.plurals.count_audio;
+                else itemType = R.plurals.count_files;
             }
-            sb.append(uriCount).append(" ").append(itemType);
+            sb.append(context.getResources().getQuantityString(itemType, uriCount, uriCount));
 
             if (text != null && text.length() > 0) {
                 String clean = text.toString().replace('\n', ' ').trim();
@@ -277,7 +275,7 @@ public final class ShareRequest {
         } else if (mime != null && !mime.isEmpty()) {
             sb.append(mime);
         } else {
-            sb.append("分享内容");
+            sb.append(context.getString(R.string.share_title_default));
         }
 
         return sb.toString();
