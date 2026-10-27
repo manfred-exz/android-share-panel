@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="window_background">#F5F6F8</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="surface_secondary">#EEEEF2</color>
+    <color name="text_primary">#1C1C1E</color>
+    <color name="text_secondary">#6E6E73</color>
+    <color name="text_tertiary">#AEAEB2</color>
+    <color name="accent_primary">#0066CC</color>
+    <color name="accent_surface">#E5F0FF</color>
+    <color name="pinned_badge_bg">#FFF3D6</color>
+    <color name="pinned_badge_text">#B25900</color>
+    <color name="danger_text">#D93829</color>
+    <color name="danger_bg">#FDEEE9</color>
+    <color name="divider_line">#E5E5EA</color>
+    <color name="button_pressed">#DCDCE0</color>
+    <color name="button_unselected">#E4E4EB</color>
+    <color name="bridge_running">#198754</color>
+</resources>
